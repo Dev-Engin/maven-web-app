@@ -1,0 +1,34 @@
+node{
+def mavenHome = tool name: 'maven3.9.2'
+  stage('1.GetCode'){
+//git " https://github.com/Dev-Engin/Maven-Web-app-project"
+//git branch: 'development', credentialsId: 'GitHubCredentials', url: 'https://github.com/Dev-Engin/Maven-Web-app-project'
+git credentialsId: 'GitHubCredentials', url: 'https://github.com/Dev-Engin/Maven-Web-app-project'
+  }
+  stage('2.Test + Build'){
+    sh "${mavenHome}/bin/mvn package" 
+  }
+  stage('3.codeQualityAnalysis'){
+    sh "${mavenHome}/bin/mvn sonar:sonar"
+}
+  stage('4.upload'){
+    sh "${mavenHome}/bin/mvn deploy"
+  }
+  stage('5.deploy2UAT'){
+deploy adapters: [tomcat9(credentialsId: 'TomcatCredentials', path: '', url: 'http://3.137.212.64:8080/')], contextPath: null, war: 'target/*war'
+}
+  stage('6.Approval'){
+sh "echo 'apps ready for review' "
+    timeout(time:5, unit:'HOURS') {
+    input message: 'Application ready for deployment, Please review and approve'
+      }
+}
+  stage('7.production'){
+deploy adapters: [tomcat9(credentialsId: 'TomcatCredentials', path: '', url: 'http://3.137.212.64:8080/')], contextPath: null, war: 'target/*war'
+}
+  stage('8.notification'){
+emailext body: '''Hi Team
+Build status
+MerrydaveTech''', recipientProviders: [upstreamDevelopers(), developers(), contributor()], subject: 'Build Status', to: 'developers'
+}
+}
